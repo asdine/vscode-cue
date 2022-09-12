@@ -1,0 +1,109 @@
+{
+  "name": "cue",
+  "displayName": "Cue",
+  "description": "Rich Cue language support for Visual Studio Code",
+  "version": "0.0.1",
+  "publisher": "asdine",
+  "author": {
+    "name": "Asdine El Hrychy",
+    "email": "asdine.elhrychy@gmail.com"
+  },
+  "engines": {
+    "vscode": "^1.71.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters"
+  ],
+  "activationEvents": [
+    "onLanguage:cue"
+  ],
+  "main": "./dist/extension.js",
+  "capabilities": {
+    "documentFormattingProvider": "true"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "cue",
+        "aliases": [
+          "cue",
+          "Cue"
+        ],
+        "extensions": [
+          ".cue"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "cue",
+        "scopeName": "source.cue",
+        "path": "./syntaxes/cue.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "cue.lint",
+        "title": "Lint current package"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Cue",
+      "properties": {
+        "cue.lintOnSave": {
+          "type": "string",
+          "enum": [
+            "package",
+            "off"
+          ],
+          "enumDescriptions": [
+            "lint the current package on file saving",
+            "do not run lint automatically"
+          ],
+          "default": "package",
+          "description": "Lints code on file save using `cue vet`.",
+          "scope": "resource"
+        },
+        "cue.lintFlags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Flags to pass to `cue vet` (e.g. [\"-c\"])",
+          "scope": "resource"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "yarn run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "yarn run compile-tests && yarn run compile && yarn run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.71.0",
+    "@types/glob": "^7.2.0",
+    "@types/mocha": "^9.1.1",
+    "@types/node": "16.x",
+    "@typescript-eslint/eslint-plugin": "^5.31.0",
+    "@typescript-eslint/parser": "^5.31.0",
+    "eslint": "^8.20.0",
+    "glob": "^8.0.3",
+    "mocha": "^10.0.0",
+    "typescript": "^4.7.4",
+    "ts-loader": "^9.3.1",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0",
+    "@vscode/test-electron": "^2.1.5"
+  }
+}
