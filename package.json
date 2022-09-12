@@ -8,6 +8,10 @@
     "name": "Asdine El Hrychy",
     "email": "asdine.elhrychy@gmail.com"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/asdine/vscode-cue"
+  },
   "engines": {
     "vscode": "^1.71.0"
   },
