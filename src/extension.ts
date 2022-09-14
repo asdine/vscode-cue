@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 import { CueDocumentFormatter } from './format';
 import { lintPackage } from './lint';
+import commandExists from 'command-exists';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
 
@@ -28,6 +29,10 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.languages.registerDocumentFormattingEditProvider(
 			"cue", new CueDocumentFormatter()));
+
+	commandExists("cueimports").catch((err) => {
+		console.log("cueimports not found. Installing ...")
+	})
 }
 
 // this method is called when your extension is deactivated

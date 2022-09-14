@@ -19,6 +19,9 @@ export async function lintPackage(currentDocument: vscode.TextDocument, diagnost
 }
 
 function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: vscode.DiagnosticCollection, output: string) {
+    if (!output) {
+        return
+    }
     console.log("cue vet error:", output);
     // split lines
     const lines = output.split(/\r?\n/);
