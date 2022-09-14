@@ -9,8 +9,8 @@ export async function lintPackage(currentDocument: vscode.TextDocument, diagnost
     const dir = path.dirname(currentDocument.uri.fsPath);
 
     try {
-        const { stderr } = await exec('cue vet', { cwd: dir })
         diagnosticCol.clear();
+        const { stderr } = await exec('cue vet', { cwd: dir })
         parseCueVetErrors(currentDocument, diagnosticCol, stderr);
         return;
     } catch (e) {
@@ -19,8 +19,13 @@ export async function lintPackage(currentDocument: vscode.TextDocument, diagnost
 }
 
 function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: vscode.DiagnosticCollection, output: string) {
+    console.log("cue vet error:", output);
     // split lines
     const lines = output.split(/\r?\n/);
+    // remove last line if it's empty
+    if (lines[lines.length - 1] === "") {
+        lines.pop();
+    }
     if (lines.length === 0) {
         return;
     }
@@ -32,52 +37,75 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
     // error location:
     //     <file>:<line>:<col>
     const eLoc = /^\s+(.+):(\d+):(\d+)$/;
+    // error location with no line/col:
+    //     <file>: <message>
+    const eNoLoc = /^\s+(.+):\s+(.+)$/;
 
     let diagnosticMap: Map<string, vscode.Diagnostic[]> = new Map();
 
     let i = 0;
     while (i < lines.length) {
-        const errMsg = lines[i];
+        let errMsg = lines[i];
         i++;
         if (errMsg === "") {
             continue
         }
-
-        if (i >= lines.length) {
-            break;
-        }
-
-        const r = eLoc.exec(lines[i]);
-        i++;
-        if (!r) {
+        if (errMsg.startsWith("some instances are incomplete")) {
             continue
         }
 
-        const file = r[1];
-        const line = parseInt(r[2]) - 1;
-        const col = parseInt(r[3]);
+        if (i >= lines.length) {
+            addToDiagnostics(currentDocument, diagnosticMap, currentDocument.fileName, 0, 0, errMsg);
+            break;
+        }
 
-        // file path is relative to the current document directory.
-        // we need to convert it to a path relative to the workspace root.
-        const dir = path.dirname(currentDocument.uri.fsPath);
-        let canonicalFile = vscode.Uri.file(path.resolve(dir, file)).toString();
+        let r;
+        do {
+            let r = eLoc.exec(lines[i]);
+            if (r) {
+                i++;
+                const file = r[1];
+                const line = parseInt(r[2]) - 1;
+                const col = parseInt(r[3]);
 
-        const range = new vscode.Range(
-            new vscode.Position(line, col),
-            new vscode.Position(line, col)
-        );
+                addToDiagnostics(currentDocument, diagnosticMap, file, line, col, errMsg);
+                continue
+            }
+            // try with eNoLoc
+            r = eNoLoc.exec(lines[i])
+            if (!r) {
+                break;
+            }
+            i++
 
-        let diagnostics = diagnosticMap.get(canonicalFile)
-        if (!diagnostics) { diagnostics = []; }
-        diagnostics.push(new vscode.Diagnostic(
-            range,
-            errMsg,
-            vscode.DiagnosticSeverity.Error
-        ));
-        diagnosticMap.set(canonicalFile, diagnostics);
+            const file = r[1];
+            const msg = r[2];
+            addToDiagnostics(currentDocument, diagnosticMap, file, 0, 0, errMsg + " " + msg);
+        } while (r)
     }
 
     diagnosticMap.forEach((diags, file) => {
         diagnosticCol.set(vscode.Uri.parse(file), diags);
     });
+}
+
+function addToDiagnostics(currentDocument: vscode.TextDocument, diagnosticMap: Map<string, vscode.Diagnostic[]>, file: string, line: number, col: number, errMsg: string) {
+    // file path is relative to the current document directory.
+    // we need to convert it to a path relative to the workspace root.
+    const dir = path.dirname(currentDocument.uri.fsPath);
+    let canonicalFile = vscode.Uri.file(path.resolve(dir, file)).toString();
+
+    const range = new vscode.Range(
+        new vscode.Position(line, col),
+        new vscode.Position(line, col)
+    );
+
+    let diagnostics = diagnosticMap.get(canonicalFile)
+    if (!diagnostics) { diagnostics = []; }
+    diagnostics.push(new vscode.Diagnostic(
+        range,
+        errMsg,
+        vscode.DiagnosticSeverity.Error
+    ));
+    diagnosticMap.set(canonicalFile, diagnostics);
 }
