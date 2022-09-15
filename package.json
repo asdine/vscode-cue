@@ -50,7 +50,11 @@
     "commands": [
       {
         "command": "cue.lint",
-        "title": "Lint current package"
+        "title": "Cue: Lint current package"
+      },
+      {
+        "command": "cue.updateTools",
+        "title": "Cue: Install/update tools used by the extension (e.g. cueimports, etc...)"
       }
     ],
     "configuration": {
@@ -92,6 +96,10 @@
           ],
           "default": "cueimports",
           "description": "Tool to use for formatting code."
+        },
+        "cue.toolsPath": {
+          "type": "string",
+          "description": "Path to the directory containing the tools installed by the extension (e.g. cueimports, etc...). If not set, the extension will use the $HOME/.bin directory. This directory must be in your PATH."
         }
       }
     }
@@ -109,9 +117,12 @@
   },
   "devDependencies": {
     "@types/command-exists": "^1.2.0",
+    "@types/follow-redirects": "^1.14.1",
     "@types/glob": "^7.2.0",
+    "@types/gunzip-maybe": "^1.4.0",
     "@types/mocha": "^9.1.1",
     "@types/node": "16.x",
+    "@types/tar-fs": "^2.0.1",
     "@types/vscode": "^1.71.0",
     "@typescript-eslint/eslint-plugin": "^5.31.0",
     "@typescript-eslint/parser": "^5.31.0",
@@ -125,6 +136,10 @@
     "webpack-cli": "^4.10.0"
   },
   "dependencies": {
-    "command-exists": "^1.2.9"
+    "command-exists": "^1.2.9",
+    "follow-redirects": "^1.15.2",
+    "gunzip-maybe": "^1.4.2",
+    "octokit": "^2.0.7",
+    "tar-fs": "^2.1.1"
   }
 }

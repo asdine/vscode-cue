@@ -1,11 +1,10 @@
 import * as vscode from 'vscode';
-import os from "os";
 import path from 'path';
 import fs from "fs/promises";
 import util from 'util';
-import { cwd } from 'process';
-const execFile = util.promisify(require('child_process').execFile);
 import { spawn } from 'child_process';
+import { withTempFile } from './helpers';
+const execFile = util.promisify(require('child_process').execFile);
 
 export class CueDocumentFormatter implements vscode.DocumentFormattingEditProvider {
     public provideDocumentFormattingEdits(document: vscode.TextDocument):
@@ -95,13 +94,3 @@ const formatWithCueFmt = async (document: vscode.TextDocument): Promise<vscode.T
     });
 }
 
-const withTempDir = async (fn: Function) => {
-    const dir = await fs.mkdtemp(await fs.realpath(os.tmpdir()) + path.sep);
-    try {
-        return await fn(dir);
-    } finally {
-        fs.rm(dir, { recursive: true });
-    }
-};
-
-const withTempFile = (fn: Function) => withTempDir((dir: string) => fn(path.join(dir, "file.cue")));

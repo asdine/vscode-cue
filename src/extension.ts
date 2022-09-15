@@ -2,8 +2,8 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { CueDocumentFormatter } from './format';
-import { lintPackage } from './lint';
-import commandExists from 'command-exists';
+import { lintCommand } from './lint';
+import { updateTools, ensureTools } from './tools';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
 
@@ -11,18 +11,26 @@ let diagnosticCollection: vscode.DiagnosticCollection;
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 	// Set up diagnostics for the linter
-	diagnosticCollection = vscode.languages.createDiagnosticCollection('cue');
+	diagnosticCollection = vscode.languages.createDiagnosticCollection('Cue');
 	context.subscriptions.push(diagnosticCollection);
 
-	// Register the cue.lint command
-	let disposable = vscode.commands.registerCommand('cue.lint', lintCommand);
+	// Set up the output channel
+	const outputChannel = vscode.window.createOutputChannel('Cue');
+	context.subscriptions.push(outputChannel);
 
+	// Create commands
+	const lintCmd = lintCommand(diagnosticCollection)
+
+	// Register commands
+	let disposable = vscode.commands.registerCommand('cue.lint', lintCmd);
+	context.subscriptions.push(disposable);
+	disposable = vscode.commands.registerCommand('cue.updateTools', updateTools);
 	context.subscriptions.push(disposable);
 
 	// Run the linter on save
 	context.subscriptions.push(
-		vscode.workspace.onDidOpenTextDocument(lintCommand),
-		vscode.workspace.onDidSaveTextDocument(lintCommand)
+		vscode.workspace.onDidOpenTextDocument(lintCmd),
+		vscode.workspace.onDidSaveTextDocument(lintCmd),
 	);
 
 	// Register the formatter
@@ -30,36 +38,9 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.languages.registerDocumentFormattingEditProvider(
 			"cue", new CueDocumentFormatter()));
 
-	commandExists("cueimports").catch((err) => {
-		console.log("cueimports not found. Installing ...")
-	})
+	ensureTools(outputChannel)
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() { }
 
-async function lintCommand(document?: vscode.TextDocument) {
-	if (!document) {
-		const editor = vscode.window.activeTextEditor
-		if (!editor) {
-			vscode.window.showErrorMessage('No active editor')
-			return
-		}
-
-		document = editor.document;
-
-		if (document.languageId !== "cue") {
-			vscode.window.showErrorMessage('Document is not a CUE file')
-			return
-		}
-	} else {
-		const config = vscode.workspace.getConfiguration('cue');
-		if (config.get("lintOnSave") !== "package") {
-			return
-		}
-	}
-
-	if (document.languageId === "cue") {
-		await lintPackage(document, diagnosticCollection)
-	}
-}

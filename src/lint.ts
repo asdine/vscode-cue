@@ -4,6 +4,34 @@ import util from 'util';
 import { ExecException } from 'child_process';
 const execFile = util.promisify(require('child_process').execFile);
 
+export function lintCommand(diagnosticCollection: vscode.DiagnosticCollection) {
+    return async function (document?: vscode.TextDocument) {
+        if (!document) {
+            const editor = vscode.window.activeTextEditor
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor')
+                return
+            }
+
+            document = editor.document;
+
+            if (document.languageId !== "cue") {
+                vscode.window.showErrorMessage('Document is not a CUE file')
+                return
+            }
+        } else {
+            const config = vscode.workspace.getConfiguration('cue');
+            if (config.get("lintOnSave") !== "package") {
+                return
+            }
+        }
+
+        if (document.languageId === "cue") {
+            await lintPackage(document, diagnosticCollection)
+        }
+    }
+}
+
 export async function lintPackage(currentDocument: vscode.TextDocument, diagnosticCol: vscode.DiagnosticCollection) {
     // get the directory path of the current document
     const dir = path.dirname(currentDocument.uri.fsPath);
