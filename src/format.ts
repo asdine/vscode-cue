@@ -3,6 +3,7 @@ import os from "os";
 import path from 'path';
 import fs from "fs/promises";
 import util from 'util';
+import { cwd } from 'process';
 const execFile = util.promisify(require('child_process').execFile);
 import { spawn } from 'child_process';
 
@@ -21,11 +22,14 @@ export class CueDocumentFormatter implements vscode.DocumentFormattingEditProvid
 }
 
 const formatWithCueImports = async (document: vscode.TextDocument): Promise<vscode.TextEdit[]> => {
+    // get the directory path of the current document
+    const dir = path.dirname(document.uri.fsPath);
+
     const content = document.getText()
 
     return new Promise<vscode.TextEdit[]>((resolve, reject) => {
         try {
-            const command = spawn("cueimports")
+            const command = spawn("cueimports", [], { cwd: dir });
             command.stdin.write(content);
             command.stdin.end();
 

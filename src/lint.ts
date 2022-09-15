@@ -2,15 +2,18 @@ import * as vscode from 'vscode';
 import path, { format } from 'path';
 import util from 'util';
 import { ExecException } from 'child_process';
-const exec = util.promisify(require('child_process').exec);
+const execFile = util.promisify(require('child_process').execFile);
 
 export async function lintPackage(currentDocument: vscode.TextDocument, diagnosticCol: vscode.DiagnosticCollection) {
     // get the directory path of the current document
     const dir = path.dirname(currentDocument.uri.fsPath);
 
+    const config = vscode.workspace.getConfiguration('cue');
+    const flags = config.get("lintFlags") as string[];
+
     try {
         diagnosticCol.clear();
-        const { stderr } = await exec('cue vet', { cwd: dir })
+        const { stderr } = await execFile('cue', ['vet', ...flags], { cwd: dir })
         parseCueVetErrors(currentDocument, diagnosticCol, stderr);
         return;
     } catch (e) {
@@ -55,6 +58,9 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
         }
         if (errMsg.startsWith("some instances are incomplete")) {
             continue
+        }
+        if (errMsg.endsWith(":")) {
+            errMsg = errMsg.slice(0, -1);
         }
 
         if (i >= lines.length) {
