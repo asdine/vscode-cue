@@ -2,7 +2,7 @@
   "name": "cue",
   "displayName": "Cue",
   "description": "Cue language support for Visual Studio Code",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "asdine",
   "author": {
     "name": "Asdine El Hrychy",
@@ -10,9 +10,6 @@
   },
   "license": "MIT",
   "icon": "logo.png",
-  "galleryBanner": {
-    "theme": "dark"
-  },
   "keywords": [
     "cue",
     "language",
