@@ -4,9 +4,15 @@ import fs from "fs/promises";
 import util from 'util';
 import { spawn } from 'child_process';
 import { withTempFile } from './helpers';
+import { ensureTools } from './tools';
 const execFile = util.promisify(require('child_process').execFile);
 
 export class CueDocumentFormatter implements vscode.DocumentFormattingEditProvider {
+    log: vscode.OutputChannel;
+    constructor(log: vscode.OutputChannel) {
+        this.log = log;
+    }
+
     public provideDocumentFormattingEdits(document: vscode.TextDocument):
         Thenable<vscode.TextEdit[]> {
         const config = vscode.workspace.getConfiguration('cue');
@@ -16,11 +22,11 @@ export class CueDocumentFormatter implements vscode.DocumentFormattingEditProvid
             return formatWithCueFmt(document)
         }
 
-        return formatWithCueImports(document)
+        return formatWithCueImports(this.log, document)
     }
 }
 
-const formatWithCueImports = async (document: vscode.TextDocument): Promise<vscode.TextEdit[]> => {
+const formatWithCueImports = async (log: vscode.OutputChannel, document: vscode.TextDocument): Promise<vscode.TextEdit[]> => {
     // get the directory path of the current document
     const dir = path.dirname(document.uri.fsPath);
 
@@ -33,8 +39,7 @@ const formatWithCueImports = async (document: vscode.TextDocument): Promise<vsco
             command.stdin.end();
 
             command.on("error", (err) => {
-                vscode.window.showErrorMessage("cueimports not found")
-                reject(err);
+                ensureTools(log).catch(reject)
             });
 
             let buf = "";

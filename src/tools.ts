@@ -18,17 +18,7 @@ export async function ensureTools(log: vscode.OutputChannel) {
     catch (err) {
         // check if the tool is already installed
         // but not in the path
-        const config = vscode.workspace.getConfiguration('cue');
-        let toolsPath = config.get("toolsPath") as string
-        if (!toolsPath) {
-            toolsPath = path.join(os.homedir(), ".bin")
-        } else {
-            // resolve env vars that may be in the path
-            // @ts-ignore
-            toolsPath = toolsPath.replace(/\$([A-Z_]+[A-Z0-9_]*)|\${([A-Z0-9_]*)}/ig, (_, a, b) => process.env[a || b])
-            // toolsPath = toolsPath.replace(/%([^%]+)%/g, (_, n) => process.env[n])
-            console.log("Resolved toolsPath", toolsPath)
-        }
+        const toolsPath = getToolsPath()
         const cueimportsPath = path.join(toolsPath, "cueimports");
         try {
             await fsp.access(cueimportsPath);
@@ -39,57 +29,86 @@ export async function ensureTools(log: vscode.OutputChannel) {
             return
         } catch (err) {
             log.show(true);
-            log.appendLine("cueimports not found. Installing...")
-            return updateTools(log, toolsPath)
+            log.appendLine("cueimports not found.")
+            return installLatestToolsVersion(log, toolsPath)
         }
     }
 }
 
-export async function updateTools(log: vscode.OutputChannel, toolsPath: string) {
+function getToolsPath(): string {
+    const config = vscode.workspace.getConfiguration('cue');
+    let toolsPath = config.get("toolsPath") as string
+    if (!toolsPath) {
+        toolsPath = path.join(os.homedir(), ".bin")
+    } else {
+        // resolve env vars that may be in the path
+        // @ts-ignore
+        toolsPath = toolsPath.replace(/\$([A-Z_]+[A-Z0-9_]*)|\${([A-Z0-9_]*)}/ig, (_, a, b) => process.env[a || b])
+        // toolsPath = toolsPath.replace(/%([^%]+)%/g, (_, n) => process.env[n])
+    }
+    return toolsPath
+}
+
+export function updateToolsCommand(log: vscode.OutputChannel) {
+    log.show(true);
+    return async function (document?: vscode.TextDocument) {
+        const toolsPath = getToolsPath()
+        return await installLatestToolsVersion(log, toolsPath)
+    }
+}
+
+async function installLatestToolsVersion(log: vscode.OutputChannel, toolsPath: string) {
+    log.appendLine("Installing cueimports...")
     const octokit = new Octokit();
 
-    const { data } = await octokit.rest.repos.getLatestRelease({ owner: "asdine", repo: "cueimports" });
-    const { assets } = data;
-    // download the asset for the current platform
-    const platform = process.platform;
-    const arch = process.arch;
-    const asset = assets.find(a => a.name.toLowerCase().includes(platform) && a.name.toLowerCase().includes(arch));
-    if (!asset) {
-        log.appendLine(`No cueimports build found for platform ${platform} and arch ${arch}`);
-        log.appendLine(`You can build cueimports from source at https://github.com/asdine/cueimports`);
-        return
-    }
-    const { browser_download_url } = asset;
-    log.appendLine(`Downloading cueimports from ${browser_download_url}`);
+    try {
+        const { data } = await octokit.rest.repos.getLatestRelease({ owner: "asdine", repo: "cueimports" });
+        const { assets } = data;
 
-    // download and untar the asset
-    const q = https.get(browser_download_url, async (res) => {
-        if (res.statusCode !== 200) {
-            log.appendLine(`Failed to download cueimports: ${res.statusMessage} ${res.statusCode}`);
+        // download the asset for the current platform
+        const platform = process.platform;
+        const arch = process.arch;
+        const asset = assets.find(a => a.name.toLowerCase().includes(platform) && a.name.toLowerCase().includes(arch));
+        if (!asset) {
+            log.appendLine(`No cueimports build found for platform ${platform} and arch ${arch}`);
+            log.appendLine(`You can build cueimports from source at https://github.com/asdine/cueimports`);
             return
         }
+        const { browser_download_url } = asset;
+        log.appendLine(`Downloading cueimports from ${browser_download_url}`);
 
-        await withTempDir(async (dir: string) => {
-            await new Promise<void>(resolve => {
-                const finish = async () => {
-                    await fsp.mkdir(toolsPath, { recursive: true });
-                    const dest = path.join(toolsPath, "cueimports");
-                    await fsp.copyFile(path.join(dir, 'cueimports'), dest);
-                    log.appendLine(`cueimports downloaded successfully to ${dest}`);
-                    log.appendLine(`Please make sure ${dest} is in your PATH.`);
-                    log.appendLine("You can also change the install location by setting the cue.toolsPath setting.");
-                    log.appendLine("");
-                    log.appendLine("Enjoy! :)")
-                    resolve()
-                }
+        // download and untar the asset
+        const q = https.get(browser_download_url, async (res) => {
+            if (res.statusCode !== 200) {
+                log.appendLine(`Failed to download cueimports: ${res.statusMessage} ${res.statusCode}`);
+                return
+            }
 
-                // @ts-ignore
-                res.pipe(zlib.createGunzip()).pipe(tar.extract(dir, { finish }));
+            await withTempDir(async (dir: string) => {
+                await new Promise<void>(resolve => {
+                    const finish = async () => {
+                        await fsp.mkdir(toolsPath, { recursive: true });
+                        const dest = path.join(toolsPath, "cueimports");
+                        await fsp.copyFile(path.join(dir, 'cueimports'), dest);
+                        log.appendLine(`cueimports downloaded successfully to ${dest}`);
+                        log.appendLine(`Please make sure ${dest} is in your PATH.`);
+                        log.appendLine("You can also change the install location by setting the cue.toolsPath setting.");
+                        log.appendLine("");
+                        log.appendLine("Enjoy! :)")
+                        resolve()
+                    }
+
+                    // @ts-ignore
+                    res.pipe(zlib.createGunzip()).pipe(tar.extract(dir, { finish }));
+                })
             })
-        })
-    });
+        });
 
-    q.on("error", (err) => {
-        console.error(err);
-    });
+        q.on("error", (err) => {
+            console.error(err);
+        });
+    } catch (e) {
+        log.appendLine(`Couldn't download cueimports: ${e}`)
+        return
+    }
 }

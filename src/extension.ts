@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { CueDocumentFormatter } from './format';
 import { lintCommand } from './lint';
-import { updateTools, ensureTools } from './tools';
+import { updateToolsCommand, ensureTools } from './tools';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
 
@@ -24,7 +24,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Register commands
 	let disposable = vscode.commands.registerCommand('cue.lint', lintCmd);
 	context.subscriptions.push(disposable);
-	disposable = vscode.commands.registerCommand('cue.updateTools', updateTools);
+	disposable = vscode.commands.registerCommand('cue.updateTools', updateToolsCommand(outputChannel));
 	context.subscriptions.push(disposable);
 
 	// Run the linter on save
@@ -36,7 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Register the formatter
 	context.subscriptions.push(
 		vscode.languages.registerDocumentFormattingEditProvider(
-			"cue", new CueDocumentFormatter()));
+			"cue", new CueDocumentFormatter(outputChannel)));
 
 	ensureTools(outputChannel)
 }
