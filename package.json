@@ -3,13 +3,13 @@
   "displayName": "Cue",
   "description": "Cue language support for Visual Studio Code",
   "version": "0.1.0",
-  "publisher": "Asdine El Hrychy",
+  "publisher": "asdine",
   "author": {
     "name": "Asdine El Hrychy",
     "email": "asdine.elhrychy@gmail.com"
   },
   "license": "MIT",
-  "icon": "cue.png",
+  "icon": "logo.png",
   "galleryBanner": {
     "theme": "dark"
   },

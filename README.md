@@ -2,6 +2,8 @@
 
 The VS Code Cue extension provides language support for the [CUE](https://github.com/cue-lang/cue) data validation language.
 
+![Cue extension overview](resources/images/cueimports.gif)
+
 ## Features
 
 - Code formatting
