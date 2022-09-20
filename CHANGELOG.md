@@ -7,3 +7,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [v0.1.0]
 
 - Initial release
+
+## [v0.2.0]
+
+- Add support for macos signed binaries
