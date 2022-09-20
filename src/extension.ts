@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { CueDocumentFormatter } from './format';
 import { lintCommand } from './lint';
-import { updateToolsCommand, ensureTools } from './tools';
+import { updateToolsCommand, ensureLastVersion, ensureTools } from './tools';
 
 let diagnosticCollection: vscode.DiagnosticCollection;
 
@@ -38,7 +38,11 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.languages.registerDocumentFormattingEditProvider(
 			"cue", new CueDocumentFormatter(outputChannel)));
 
-	ensureTools(outputChannel)
+	ensureTools(outputChannel).then((alreadyInstalled) => {
+		if (alreadyInstalled) {
+			ensureLastVersion(outputChannel)
+		}
+	})
 }
 
 // this method is called when your extension is deactivated

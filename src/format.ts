@@ -39,6 +39,7 @@ const formatWithCueImports = async (log: vscode.OutputChannel, document: vscode.
             command.stdin.end();
 
             command.on("error", (err) => {
+                log.appendLine("Error running cueimports: " + err);
                 ensureTools(log).catch(reject)
             });
 
