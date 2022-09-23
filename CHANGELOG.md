@@ -16,3 +16,5 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Fix display of multi-line errors.
 - Fix line and col position of errors.
+- By default, the linter now uses the "-c" flag but skips all "incomplete" errors. See https://github.com/cue-lang/cue/issues/1928.
+  If any flag is set in the `lintFlags` option, this behavior is disabled.

@@ -37,22 +37,30 @@ export async function lintPackage(currentDocument: vscode.TextDocument, diagnost
     const dir = path.dirname(currentDocument.uri.fsPath);
 
     const config = vscode.workspace.getConfiguration('cue');
-    const flags = config.get("lintFlags") as string[];
+    let flags = config.get("lintFlags") as string[];
+
+    // if the user didn't specify any flags,
+    // use -c but skip incomplete errors
+    let skipIncomplete = !flags || flags.length === 0;
+    if (skipIncomplete) {
+        flags = ["-c"];
+    }
 
     try {
         diagnosticCol.clear();
         const { stderr } = await execFile('cue', ['vet', ...flags], { cwd: dir })
-        parseCueVetErrors(currentDocument, diagnosticCol, stderr);
+        parseCueVetErrors(currentDocument, diagnosticCol, stderr, skipIncomplete);
         return;
     } catch (e) {
-        parseCueVetErrors(currentDocument, diagnosticCol, (e as ExecException).message.split("\n").slice(1).join("\n"));
+        parseCueVetErrors(currentDocument, diagnosticCol, (e as ExecException).message.split("\n").slice(1).join("\n"), skipIncomplete);
     }
 }
 
-function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: vscode.DiagnosticCollection, output: string) {
+function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: vscode.DiagnosticCollection, output: string, skipIncomplete: boolean) {
     if (!output) {
         return
     }
+    console.log("cue vet output: ", output);
     // split lines
     const lines = output.split(/\r?\n/);
     // remove last line if it's empty
@@ -86,15 +94,12 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
             errMsg += lines[i];
             i++;
         }
-        if (errMsg.startsWith("some instances are incomplete")) {
-            continue
-        }
         if (errMsg.endsWith(":")) {
             errMsg = errMsg.slice(0, -1);
         }
 
         if (i >= lines.length) {
-            addToDiagnostics(currentDocument, diagnosticMap, currentDocument.fileName, 0, 0, errMsg);
+            addToDiagnostics(currentDocument, diagnosticMap, currentDocument.fileName, 0, 0, errMsg, skipIncomplete);
             break;
         }
 
@@ -104,7 +109,7 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
                 const file = r[1];
                 const line = parseInt(r[2]);
                 const col = parseInt(r[3]);
-                addToDiagnostics(currentDocument, diagnosticMap, file, line, col, errMsg);
+                addToDiagnostics(currentDocument, diagnosticMap, file, line, col, errMsg, skipIncomplete);
             } else {
                 // try with eNoLoc
                 r = eNoLoc.exec(lines[i])
@@ -113,7 +118,7 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
                 }
                 const file = r[1];
                 const msg = r[2];
-                addToDiagnostics(currentDocument, diagnosticMap, file, 0, 0, errMsg + " " + msg);
+                addToDiagnostics(currentDocument, diagnosticMap, file, 0, 0, errMsg + " " + msg, skipIncomplete);
             }
             i++
         }
@@ -124,7 +129,18 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
     });
 }
 
-function addToDiagnostics(currentDocument: vscode.TextDocument, diagnosticMap: Map<string, vscode.Diagnostic[]>, file: string, line: number, col: number, errMsg: string) {
+function addToDiagnostics(currentDocument: vscode.TextDocument, diagnosticMap: Map<string, vscode.Diagnostic[]>, file: string, line: number, col: number, errMsg: string, skipIncomplete: boolean) {
+    if (skipIncomplete) {
+        if (errMsg.startsWith("some instances are incomplete")) {
+            return
+        }
+        if (errMsg.includes("incomplete value")) {
+            return
+        }
+        if (errMsg.includes("non-concrete value")) {
+            return
+        }
+    }
     // file path is relative to the current document directory.
     // we need to convert it to a path relative to the workspace root.
     const dir = path.dirname(currentDocument.uri.fsPath);
