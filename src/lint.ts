@@ -53,7 +53,6 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
     if (!output) {
         return
     }
-    console.log("cue vet error:", output);
     // split lines
     const lines = output.split(/\r?\n/);
     // remove last line if it's empty
@@ -64,9 +63,9 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
         return;
     }
 
-    // each error is written in two lines:
-    // one line for the error message
-    // one line for the error location
+    // each error is written in two groups:
+    // one or more lines for the error message
+    // one or more lines for the location, starting with multiple spaces
 
     // error location:
     //     <file>:<line>:<col>
@@ -79,10 +78,13 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
 
     let i = 0;
     while (i < lines.length) {
-        let errMsg = lines[i];
-        i++;
-        if (errMsg === "") {
-            continue
+        let errMsg = ""
+        while (i < lines.length && !lines[i].startsWith("  ")) {
+            if (errMsg.length > 0) {
+                errMsg += "\n"
+            }
+            errMsg += lines[i];
+            i++;
         }
         if (errMsg.startsWith("some instances are incomplete")) {
             continue
@@ -96,29 +98,25 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
             break;
         }
 
-        let r;
-        do {
+        while (i < lines.length && lines[i].startsWith("  ")) {
             let r = eLoc.exec(lines[i]);
             if (r) {
-                i++;
                 const file = r[1];
-                const line = parseInt(r[2]) - 1;
+                const line = parseInt(r[2]);
                 const col = parseInt(r[3]);
-
                 addToDiagnostics(currentDocument, diagnosticMap, file, line, col, errMsg);
-                continue
-            }
-            // try with eNoLoc
-            r = eNoLoc.exec(lines[i])
-            if (!r) {
-                break;
+            } else {
+                // try with eNoLoc
+                r = eNoLoc.exec(lines[i])
+                if (!r) {
+                    break;
+                }
+                const file = r[1];
+                const msg = r[2];
+                addToDiagnostics(currentDocument, diagnosticMap, file, 0, 0, errMsg + " " + msg);
             }
             i++
-
-            const file = r[1];
-            const msg = r[2];
-            addToDiagnostics(currentDocument, diagnosticMap, file, 0, 0, errMsg + " " + msg);
-        } while (r)
+        }
     }
 
     diagnosticMap.forEach((diags, file) => {
@@ -133,8 +131,8 @@ function addToDiagnostics(currentDocument: vscode.TextDocument, diagnosticMap: M
     let canonicalFile = vscode.Uri.file(path.resolve(dir, file)).toString();
 
     const range = new vscode.Range(
-        new vscode.Position(line, col),
-        new vscode.Position(line, col)
+        new vscode.Position(line - 1, col - 1),
+        new vscode.Position(line - 1, col - 1)
     );
 
     let diagnostics = diagnosticMap.get(canonicalFile)

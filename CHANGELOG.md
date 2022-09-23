@@ -10,4 +10,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [v0.2.0]
 
-- Add support for macos signed binaries
+- Sign macos cueimports binaries. This fixes a bug where cueimports doesn't run on macos.
+
+## [v0.3.0]
+
+- Fix display of multi-line errors.
+- Fix line and col position of errors.
