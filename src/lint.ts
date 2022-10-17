@@ -1,42 +1,45 @@
-import * as vscode from 'vscode';
-import path, { format } from 'path';
-import util from 'util';
-import { ExecException } from 'child_process';
-const execFile = util.promisify(require('child_process').execFile);
+import * as vscode from "vscode";
+import path, { format } from "path";
+import util from "util";
+import { ExecException } from "child_process";
+const execFile = util.promisify(require("child_process").execFile);
 
 export function lintCommand(diagnosticCollection: vscode.DiagnosticCollection) {
     return async function (document?: vscode.TextDocument) {
         if (!document) {
-            const editor = vscode.window.activeTextEditor
+            const editor = vscode.window.activeTextEditor;
             if (!editor) {
-                vscode.window.showErrorMessage('No active editor')
-                return
+                vscode.window.showErrorMessage("No active editor");
+                return;
             }
 
             document = editor.document;
 
             if (document.languageId !== "cue") {
-                vscode.window.showErrorMessage('Document is not a CUE file')
-                return
+                vscode.window.showErrorMessage("Document is not a CUE file");
+                return;
             }
         } else {
-            const config = vscode.workspace.getConfiguration('cue');
+            const config = vscode.workspace.getConfiguration("cue");
             if (config.get("lintOnSave") !== "package") {
-                return
+                return;
             }
         }
 
         if (document.languageId === "cue") {
-            await lintPackage(document, diagnosticCollection)
+            await lintPackage(document, diagnosticCollection);
         }
-    }
+    };
 }
 
-export async function lintPackage(currentDocument: vscode.TextDocument, diagnosticCol: vscode.DiagnosticCollection) {
+export async function lintPackage(
+    currentDocument: vscode.TextDocument,
+    diagnosticCol: vscode.DiagnosticCollection
+) {
     // get the directory path of the current document
     const dir = path.dirname(currentDocument.uri.fsPath);
 
-    const config = vscode.workspace.getConfiguration('cue');
+    const config = vscode.workspace.getConfiguration("cue");
     let flags = config.get("lintFlags") as string[];
 
     // if the user didn't specify any flags,
@@ -48,17 +51,34 @@ export async function lintPackage(currentDocument: vscode.TextDocument, diagnost
 
     try {
         diagnosticCol.clear();
-        const { stderr } = await execFile('cue', ['vet', ...flags], { cwd: dir })
-        parseCueVetErrors(currentDocument, diagnosticCol, stderr, skipIncomplete);
+        const { stderr } = await execFile("cue", ["vet", ...flags], {
+            cwd: dir,
+        });
+        parseCueVetErrors(
+            currentDocument,
+            diagnosticCol,
+            stderr,
+            skipIncomplete
+        );
         return;
     } catch (e) {
-        parseCueVetErrors(currentDocument, diagnosticCol, (e as ExecException).message.split("\n").slice(1).join("\n"), skipIncomplete);
+        parseCueVetErrors(
+            currentDocument,
+            diagnosticCol,
+            (e as ExecException).message.split("\n").slice(1).join("\n"),
+            skipIncomplete
+        );
     }
 }
 
-function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: vscode.DiagnosticCollection, output: string, skipIncomplete: boolean) {
+function parseCueVetErrors(
+    currentDocument: vscode.TextDocument,
+    diagnosticCol: vscode.DiagnosticCollection,
+    output: string,
+    skipIncomplete: boolean
+) {
     if (!output) {
-        return
+        return;
     }
     console.log("cue vet output: ", output);
     // split lines
@@ -86,10 +106,10 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
 
     let i = 0;
     while (i < lines.length) {
-        let errMsg = ""
+        let errMsg = "";
         while (i < lines.length && !lines[i].startsWith("  ")) {
             if (errMsg.length > 0) {
-                errMsg += "\n"
+                errMsg += "\n";
             }
             errMsg += lines[i];
             i++;
@@ -99,7 +119,15 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
         }
 
         if (i >= lines.length) {
-            addToDiagnostics(currentDocument, diagnosticMap, currentDocument.fileName, 0, 0, errMsg, skipIncomplete);
+            addToDiagnostics(
+                currentDocument,
+                diagnosticMap,
+                currentDocument.fileName,
+                0,
+                0,
+                errMsg,
+                skipIncomplete
+            );
             break;
         }
 
@@ -109,18 +137,34 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
                 const file = r[1];
                 const line = parseInt(r[2]);
                 const col = parseInt(r[3]);
-                addToDiagnostics(currentDocument, diagnosticMap, file, line, col, errMsg, skipIncomplete);
+                addToDiagnostics(
+                    currentDocument,
+                    diagnosticMap,
+                    file,
+                    line,
+                    col,
+                    errMsg,
+                    skipIncomplete
+                );
             } else {
                 // try with eNoLoc
-                r = eNoLoc.exec(lines[i])
+                r = eNoLoc.exec(lines[i]);
                 if (!r) {
                     break;
                 }
                 const file = r[1];
                 const msg = r[2];
-                addToDiagnostics(currentDocument, diagnosticMap, file, 0, 0, errMsg + " " + msg, skipIncomplete);
+                addToDiagnostics(
+                    currentDocument,
+                    diagnosticMap,
+                    file,
+                    0,
+                    0,
+                    errMsg + " " + msg,
+                    skipIncomplete
+                );
             }
-            i++
+            i++;
         }
     }
 
@@ -129,16 +173,24 @@ function parseCueVetErrors(currentDocument: vscode.TextDocument, diagnosticCol: 
     });
 }
 
-function addToDiagnostics(currentDocument: vscode.TextDocument, diagnosticMap: Map<string, vscode.Diagnostic[]>, file: string, line: number, col: number, errMsg: string, skipIncomplete: boolean) {
+function addToDiagnostics(
+    currentDocument: vscode.TextDocument,
+    diagnosticMap: Map<string, vscode.Diagnostic[]>,
+    file: string,
+    line: number,
+    col: number,
+    errMsg: string,
+    skipIncomplete: boolean
+) {
     if (skipIncomplete) {
         if (errMsg.startsWith("some instances are incomplete")) {
-            return
+            return;
         }
         if (errMsg.includes("incomplete value")) {
-            return
+            return;
         }
         if (errMsg.includes("non-concrete value")) {
-            return
+            return;
         }
     }
     // file path is relative to the current document directory.
@@ -151,12 +203,12 @@ function addToDiagnostics(currentDocument: vscode.TextDocument, diagnosticMap: M
         new vscode.Position(line - 1, col - 1)
     );
 
-    let diagnostics = diagnosticMap.get(canonicalFile)
-    if (!diagnostics) { diagnostics = []; }
-    diagnostics.push(new vscode.Diagnostic(
-        range,
-        errMsg,
-        vscode.DiagnosticSeverity.Error
-    ));
+    let diagnostics = diagnosticMap.get(canonicalFile);
+    if (!diagnostics) {
+        diagnostics = [];
+    }
+    diagnostics.push(
+        new vscode.Diagnostic(range, errMsg, vscode.DiagnosticSeverity.Error)
+    );
     diagnosticMap.set(canonicalFile, diagnostics);
 }
