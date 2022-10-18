@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import path, { format } from "path";
 import util from "util";
+import fs from "fs";
 import { ExecException } from "child_process";
 const execFile = util.promisify(require("child_process").execFile);
 
@@ -193,14 +194,31 @@ function addToDiagnostics(
             return;
         }
     }
-    // file path is relative to the current document directory.
-    // we need to convert it to a path relative to the workspace root.
-    const dir = path.dirname(currentDocument.uri.fsPath);
-    let canonicalFile = vscode.Uri.file(path.resolve(dir, file)).toString();
+    // file is either a path relative to the root of the cue workspace (where the cue.mod is located)
+    // or relative to the current document directory.
+    // If it's the latter, we need to convert it to a path relative to the workspace root.
+    let baseDir: string;
+    if (file.startsWith(".")) {
+        baseDir = path.dirname(currentDocument.uri.fsPath);
+    } else {
+        baseDir = getCueModulePath(path.dirname(currentDocument.uri.fsPath));
+    }
+    const canonicalFile = vscode.Uri.file(
+        path.resolve(baseDir, file)
+    ).toString();
+
+    line--;
+    col--;
+    if (line < 0) {
+        line = 0;
+    }
+    if (col < 0) {
+        col = 0;
+    }
 
     const range = new vscode.Range(
-        new vscode.Position(line - 1, col - 1),
-        new vscode.Position(line - 1, col - 1)
+        new vscode.Position(line, col),
+        new vscode.Position(line, col)
     );
 
     let diagnostics = diagnosticMap.get(canonicalFile);
@@ -211,4 +229,20 @@ function addToDiagnostics(
         new vscode.Diagnostic(range, errMsg, vscode.DiagnosticSeverity.Error)
     );
     diagnosticMap.set(canonicalFile, diagnostics);
+}
+
+// looks for a cue.mod directory in the current directory or any parent directory.
+// it returns the parent directory of the cue.mod directory.
+function getCueModulePath(dir: string): string {
+    if (!dir) {
+        return "";
+    }
+    while (dir !== path.dirname(dir)) {
+        const mod = path.join(dir, "cue.mod");
+        if (fs.existsSync(mod)) {
+            return dir;
+        }
+        dir = path.dirname(dir);
+    }
+    return "";
 }

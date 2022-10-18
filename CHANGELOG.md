@@ -22,3 +22,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [v0.3.1]
 
 -   Fix download of x84_64 cueimports
+
+## [v0.3.2]
+
+-   Fix path of errors relative to the cue.mod directory.
+-   Fix exception when line and / or col are equal to 0.
