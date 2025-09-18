@@ -1,5 +1,7 @@
 # Cue for Visual Studio Code
 
+> **⚠️ This extension is deprecated. Please use the official CUE [extension](https://marketplace.visualstudio.com/items?itemName=cuelangorg.vscode-cue) instead.**
+
 The VS Code Cue extension provides language support for the [CUE](https://github.com/cue-lang/cue) data validation language.
 
 ![Cue extension overview](resources/images/cueimports.gif)
