@@ -1,8 +1,8 @@
 {
   "name": "cue",
-  "displayName": "Cue",
+  "displayName": "asdine-vscode-cue",
   "description": "Cue language support for Visual Studio Code",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "publisher": "asdine",
   "author": {
     "name": "Asdine El Hrychy",
